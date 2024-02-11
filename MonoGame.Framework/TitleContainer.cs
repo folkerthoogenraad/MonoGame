@@ -30,6 +30,8 @@ namespace Microsoft.Xna.Framework
         /// <returns>A open stream or null if the file is not found.</returns>
         public static Stream OpenStream(string name)
         {
+            Platform.WASM.JSBootstrap.Log("Opening: " + name);
+
             if (string.IsNullOrEmpty(name))
                 throw new ArgumentNullException("name");
 
@@ -39,6 +41,9 @@ namespace Microsoft.Xna.Framework
 
             // Normalize the file path.
             var safeName = NormalizeRelativePath(name);
+
+            Platform.WASM.JSBootstrap.Log("Opening: " + safeName);
+
 
             // Call the platform code to open the stream.  Any errors
             // at this point should result in a file not found.

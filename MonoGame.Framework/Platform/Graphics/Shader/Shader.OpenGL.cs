@@ -83,9 +83,13 @@ namespace Microsoft.Xna.Framework.Graphics
             // Assign the texture unit index to the sampler uniforms.
             foreach (var sampler in Samplers)
             {
+#if WASM
+                var loc = GL.WASM_GetUniformLocation(GL.WASM_GetProgram(program), sampler.name);
+#else
                 var loc = GL.GetUniformLocation(program, sampler.name);
+#endif
                 GraphicsExtensions.CheckGLError();
-                if (loc != -1)
+                if (GraphicsExtensions.HasGLValue(loc))
                 {
                     GL.Uniform1(loc, sampler.textureSlot);
                     GraphicsExtensions.CheckGLError();

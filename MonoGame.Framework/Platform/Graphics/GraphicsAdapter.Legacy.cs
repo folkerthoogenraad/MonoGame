@@ -1,7 +1,6 @@
 // MonoGame - Copyright (C) MonoGame Foundation, Inc
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE.txt', which is part of this source code package.
-
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,6 +10,10 @@ using UIKit;
 #elif ANDROID
 using Android.Views;
 using Android.Runtime;
+#endif
+
+#if WASM
+using Microsoft.Xna.Framework.Platform.WASM;
 #endif
 
 // NOTE: This is the legacy graphics adapter implementation
@@ -90,6 +93,9 @@ namespace Microsoft.Xna.Framework.Graphics
 #elif ANDROID
                 View view = ((AndroidGameWindow)Game.Instance.Window).GameView;
                 return new DisplayMode(view.Width, view.Height, SurfaceFormat.Color);
+#elif WASM
+                var window = (WASMGameWindow)Game.Instance.Window;
+                return new DisplayMode(JSBootstrap.GetCanvasWidth(window.Canvas), JSBootstrap.GetCanvasHeight(window.Canvas), SurfaceFormat.Color);
 #elif DESKTOPGL
                 var displayIndex = Sdl.Display.GetWindowDisplayIndex(SdlGameWindow.Instance.Handle);
 

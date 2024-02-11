@@ -50,8 +50,8 @@ namespace Microsoft.Xna.Framework.Graphics
                 }
             }
 
-#if WINDOWS || DESKTOPGL
-			if (FillMode == FillMode.Solid) 
+#if (WINDOWS || DESKTOPGL) && !WASM
+            if (FillMode == FillMode.Solid) 
 				GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
             else
 				GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);

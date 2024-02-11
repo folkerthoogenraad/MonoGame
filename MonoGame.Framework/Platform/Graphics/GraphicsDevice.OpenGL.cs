@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Reflection.Metadata;
 
 #if ANGLE
 using OpenTK.Graphics;
@@ -138,6 +139,11 @@ namespace Microsoft.Xna.Framework.Graphics
         private float _lastClearDepth = 1.0f;
         private int _lastClearStencil = 0;
 
+#if WASM
+        private int _WasmVertexBufferObject;
+        private int _WasmIndexBufferObject;
+#endif
+
         // Get a hashed value based on the currently bound shaders
         // throws an exception if no shaders are bound
         private int ShaderProgramHash
@@ -244,7 +250,7 @@ namespace Microsoft.Xna.Framework.Graphics
         private void PlatformSetup()
         {
             _programCache = new ShaderProgramCache(this);
-#if DESKTOPGL || ANGLE
+#if (DESKTOPGL || ANGLE) && !GLES
             var windowInfo = new WindowInfo(SdlGameWindow.Instance.Handle);
 
             if (Context == null || Context.IsDisposed)
@@ -275,7 +281,14 @@ namespace Microsoft.Xna.Framework.Graphics
             // for non GLES this string always starts with the version number in the "major.minor" format, but can be followed by
             // multiple vendor specific characters
             // For GLES this string is formatted as: OpenGL<space>ES<space><version number><space><vendor-specific information>
-#if GLES
+#if WASM
+            Platform.WASM.JSBootstrap.Log($"Texture slots : {MaxTextureSlots}");
+            Platform.WASM.JSBootstrap.Log($"Max texture size: {_maxTextureSize}");
+            Platform.WASM.JSBootstrap.Log($"Max vertex attributes : {MaxVertexAttributes}");
+
+            glMajorVersion = 2;
+            glMinorVersion = 0;
+#elif GLES
             try
             {
                 string version = GL.GetString(StringName.Version);
@@ -352,6 +365,13 @@ namespace Microsoft.Xna.Framework.Graphics
             _bufferBindingInfos = new BufferBindingInfo[_maxVertexBufferSlots];
             for (int i = 0; i < _bufferBindingInfos.Length; i++)
                 _bufferBindingInfos[i] = new BufferBindingInfo(null, IntPtr.Zero, 0, -1);
+
+#if WASM
+            GL.WASM_GenBuffers(1, out _WasmVertexBufferObject);
+            GraphicsExtensions.CheckGLError();
+            GL.WASM_GenBuffers(1, out _WasmIndexBufferObject);
+            GraphicsExtensions.CheckGLError();
+#endif
         }
         
         private DepthStencilState clearDepthStencilState = new DepthStencilState { StencilEnable = true };
@@ -437,7 +457,15 @@ namespace Microsoft.Xna.Framework.Graphics
             // Free all the cached shader programs.
             _programCache.Dispose();
 
-#if DESKTOPGL || ANGLE
+#if WASM
+            GL.WASM_DeleteBuffers(1, ref _WasmVertexBufferObject);
+            GraphicsExtensions.CheckGLError();
+
+            GL.WASM_DeleteBuffers(1, ref _WasmIndexBufferObject);
+            GraphicsExtensions.CheckGLError();
+#endif
+
+#if (DESKTOPGL || ANGLE) && !WASM
             Context.Dispose();
             Context = null;
 #endif
@@ -894,8 +922,10 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             // Lookup the shader program.
             var shaderProgram = _programCache.GetProgram(VertexShader, PixelShader);
+
             if (shaderProgram.Program == -1)
                 return;
+
             // Set the new program if it has changed.
             if (_shaderProgram != shaderProgram)
             {
@@ -905,7 +935,7 @@ namespace Microsoft.Xna.Framework.Graphics
             }
 
             var posFixupLoc = shaderProgram.GetUniformLocation("posFixup");
-            if (posFixupLoc == -1)
+            if (!GraphicsExtensions.HasGLValue(posFixupLoc))
                 return;
 
             // Apply vertex shader fix:
@@ -955,10 +985,14 @@ namespace Microsoft.Xna.Framework.Graphics
                 _posFixup[3] *= -1.0f;
             }
 
+#if WASM
+            GL.Uniform4(posFixupLoc, MemoryMarshal.Cast<float, byte>(_posFixup));
+#else
             fixed (float* floatPtr = _posFixup)
             {
                 GL.Uniform4(posFixupLoc, 1, floatPtr);
             }
+#endif
             GraphicsExtensions.CheckGLError();
         }
 
@@ -969,7 +1003,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
         private void PlatformApplyBlend(bool force = false)
         {
-            _actualBlendState.PlatformApplyState(this, force);
+            _actualBlendState.PlatformApplyState(this, force); 
             ApplyBlendFactor(force);
         }
 
@@ -997,7 +1031,7 @@ namespace Microsoft.Xna.Framework.Graphics
                 GL.Scissor(scissorRect.X, scissorRect.Y, scissorRect.Width, scissorRect.Height);
                 GraphicsExtensions.CheckGLError();
 	            _scissorRectangleDirty = false;
-	        }
+            }
 
             // If we're not applying shaders then early out now.
             if (!applyShaders)
@@ -1040,7 +1074,7 @@ namespace Microsoft.Xna.Framework.Graphics
 
                 _vertexShaderDirty = _pixelShaderDirty = false;
             }
-
+            
             _vertexConstantBuffers.SetConstantBuffers(this, _shaderProgram);
             _pixelConstantBuffers.SetConstantBuffers(this, _shaderProgram);
 
@@ -1124,6 +1158,33 @@ namespace Microsoft.Xna.Framework.Graphics
         {
             ApplyState(true);
 
+#if WASM
+            // WASM TODO: Bind the wasm buffers
+            // WASM TODO upload the wasm data
+            // Then we don't have to do the vertexdeclaraiton apply thingy anymore I think :)
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _WasmVertexBufferObject);
+            GraphicsExtensions.CheckGLError();
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, _WasmIndexBufferObject);
+            GraphicsExtensions.CheckGLError();
+
+            // TODO prevent reallocation everytime :)
+            Platform.WASM.WASMGL.GLBufferData(Platform.WASM.WASMGameWindow.Instance.GLContext, (int)BufferTarget.ArrayBuffer, MemoryMarshal.Cast<T, byte>(vertexData), (int)BufferUsageHint.StaticDraw);
+            GraphicsExtensions.CheckGLError();
+            Platform.WASM.WASMGL.GLBufferData(Platform.WASM.WASMGameWindow.Instance.GLContext, (int)BufferTarget.ElementArrayBuffer, MemoryMarshal.Cast<short, byte>(indexData), (int)BufferUsageHint.StaticDraw);
+            GraphicsExtensions.CheckGLError();
+
+
+            vertexDeclaration.GraphicsDevice = this;
+            vertexDeclaration.Apply(_vertexShader, 0, ShaderProgramHash);
+
+            GL.DrawElements(
+                    PrimitiveTypeGL(primitiveType),
+                    GetElementCountArray(primitiveType, primitiveCount),
+                    DrawElementsType.UnsignedShort,
+                    indexOffset);
+            GraphicsExtensions.CheckGLError();
+#else
+
             // Unbind current VBOs.
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
             GraphicsExtensions.CheckGLError();
@@ -1156,6 +1217,7 @@ namespace Microsoft.Xna.Framework.Graphics
                 ibHandle.Free();
                 vbHandle.Free();
             }
+#endif
         }
 
         private void PlatformDrawUserIndexedPrimitives<T>(

@@ -4,6 +4,10 @@
 
 using MonoGame.OpenGL;
 
+#if WASM
+using System.Runtime.InteropServices.JavaScript;
+#endif
+
 namespace Microsoft.Xna.Framework.Graphics
 {
     public abstract partial class Texture

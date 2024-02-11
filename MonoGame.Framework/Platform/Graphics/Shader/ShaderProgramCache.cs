@@ -2,22 +2,38 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices.JavaScript;
 using MonoGame.OpenGL;
 
 namespace Microsoft.Xna.Framework.Graphics
 {
-
     internal class ShaderProgram
     {
         public readonly int Program;
 
+#if WASM
+        private readonly Dictionary<string, JSObject> _uniformLocations = new Dictionary<string, JSObject>();
+#else
         private readonly Dictionary<string, int> _uniformLocations = new Dictionary<string, int>();
+#endif
 
         public ShaderProgram(int program)
         {
             Program = program;
         }
 
+#if WASM
+        public JSObject GetUniformLocation(string name)
+        {
+            if (_uniformLocations.ContainsKey(name))
+                return _uniformLocations[name];
+
+            var location = GL.WASM_GetUniformLocation(GL.WASM_GetProgram(Program), name);
+            GraphicsExtensions.CheckGLError();
+            _uniformLocations[name] = location;
+            return location;
+        }
+#else
         public int GetUniformLocation(string name)
         {
             if (_uniformLocations.ContainsKey(name))
@@ -28,6 +44,7 @@ namespace Microsoft.Xna.Framework.Graphics
             _uniformLocations[name] = location;
             return location;
         }
+#endif
     }
 
     /// <summary>

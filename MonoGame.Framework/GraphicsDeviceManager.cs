@@ -121,7 +121,8 @@ namespace Microsoft.Xna.Framework
             }
             catch (Exception ex)
             {
-                throw new NoSuitableGraphicsDeviceException("Failed to create graphics device!", ex);
+                throw;
+                //throw new NoSuitableGraphicsDeviceException("Failed to create graphics device!", ex);
             }
         }
 

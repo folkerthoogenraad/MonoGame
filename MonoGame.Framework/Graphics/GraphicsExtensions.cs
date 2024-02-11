@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 
+
 #if OPENGL
 #if DESKTOPGL || GLES
 using MonoGame.OpenGL;
@@ -954,10 +955,19 @@ namespace Microsoft.Xna.Framework.Graphics
 
         public static int GetBoundTexture2D()
         {
+#if WASM
+            //TODO cleanup
+            var obj = Platform.WASM.WASMGL.GLGetParameterObject(Platform.WASM.WASMGameWindow.Instance.GLContext, (int)GetPName.TextureBinding2D);
+
+            if (obj == null) return 0;
+
+            return GL.WASM_GetTextureId(obj);
+#else
             var prevTexture = 0;
             GL.GetInteger(GetPName.TextureBinding2D, out prevTexture);
             GraphicsExtensions.LogGLError("GraphicsExtensions.GetBoundTexture2D() GL.GetInteger");
             return prevTexture;
+#endif
         }
 
         [Conditional("DEBUG")]
@@ -969,7 +979,19 @@ namespace Microsoft.Xna.Framework.Graphics
             if (error != ErrorCode.NoError)
                 throw new MonoGameGLException("GL.GetError() returned " + error.ToString());
         }
+        public static bool HasGLValue(int index)
+        {
+            return index != -1;
+        }
+#if WASM
+        public static bool HasGLValue(System.Runtime.InteropServices.JavaScript.JSObject index)
+        {
+            return index != null;
+        }
 #endif
+
+#endif
+
 
 #if OPENGL
         [Conditional("DEBUG")]

@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using MonoGame.Framework.Utilities;
-using System.Runtime.InteropServices;
 
 
 namespace Microsoft.Xna.Framework.Graphics

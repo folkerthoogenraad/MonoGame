@@ -10,7 +10,12 @@ namespace Microsoft.Xna.Framework.Graphics
     internal partial class ConstantBuffer
     {
         private ShaderProgram _shaderProgram = null;
+
+#if WASM
+        private System.Runtime.InteropServices.JavaScript.JSObject _location;
+#else
         private int _location;
+#endif
 
         static ConstantBuffer _lastConstantBufferApplied = null;
 
@@ -49,7 +54,7 @@ namespace Microsoft.Xna.Framework.Graphics
             if (_shaderProgram != program)
             {
                 var location = program.GetUniformLocation(_name);
-                if (location == -1)
+                if (!GraphicsExtensions.HasGLValue(location))
                     return;
 
                 _shaderProgram = program;
@@ -66,6 +71,10 @@ namespace Microsoft.Xna.Framework.Graphics
             if (!_dirty)
                 return;
 
+#if WASM
+            GL.Uniform4(_location, _buffer);
+            GraphicsExtensions.CheckGLError();
+#else
             fixed (byte* bytePtr = _buffer)
             {
                 // TODO: We need to know the type of buffer float/int/bool
@@ -75,6 +84,7 @@ namespace Microsoft.Xna.Framework.Graphics
                 GL.Uniform4(_location, _buffer.Length / 16, (float*)bytePtr);
                 GraphicsExtensions.CheckGLError();
             }
+#endif
 
             // Clear the dirty flag.
             _dirty = false;

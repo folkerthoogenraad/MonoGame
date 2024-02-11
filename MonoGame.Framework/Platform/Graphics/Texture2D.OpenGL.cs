@@ -5,6 +5,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using MonoGame.Framework.Utilities;
 
 #if IOS
@@ -68,7 +69,13 @@ namespace Microsoft.Xna.Framework.Graphics
                     }
                     else
                     {
+#if WASM
+                        var empty = Array.Empty<byte>();
+
+                        GL.WASM_TexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, glFormat, glType, empty);
+#else
                         GL.TexImage2D(TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, glFormat, glType, IntPtr.Zero);
+#endif
                         GraphicsExtensions.CheckGLError();
                     }
 
@@ -115,8 +122,15 @@ namespace Microsoft.Xna.Framework.Graphics
                 }
                 else
                 {
+#if WASM
+                    var byteSpan = MemoryMarshal.Cast<T, byte>(data.AsSpan());
+
+                    GL.WASM_TexImage2D(
+                        TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, glFormat, glType, byteSpan);
+#else
                     GL.TexImage2D(
                         TextureTarget.Texture2D, level, glInternalFormat, w, h, 0, glFormat, glType, dataPtr);
+#endif
                 }
                 GraphicsExtensions.CheckGLError();
 
@@ -129,7 +143,7 @@ namespace Microsoft.Xna.Framework.Graphics
                 // Restore the bound texture.
                 if (prevTexture != glTexture)
                 {
-                    GL.BindTexture(TextureTarget.Texture2D, prevTexture);
+                    GL.BindTexture(TextureTarget.Texture2D, prevTexture); 
                     GraphicsExtensions.CheckGLError();
                 }
             }
@@ -169,9 +183,17 @@ namespace Microsoft.Xna.Framework.Graphics
                 }
                 else
                 {
+#if WASM
+                    var byteSpan = MemoryMarshal.Cast<T, byte>(data.AsSpan());
+
+                    GL.WASM_TexSubImage2D(
+                        TextureTarget.Texture2D, level, rect.X, rect.Y, rect.Width, rect.Height,
+                        glFormat, glType, byteSpan);
+#else
                     GL.TexSubImage2D(
                         TextureTarget.Texture2D, level, rect.X, rect.Y, rect.Width, rect.Height,
                         glFormat, glType, dataPtr);
+#endif
                 }
                 GraphicsExtensions.CheckGLError();
 

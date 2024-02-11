@@ -9,6 +9,14 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Diagnostics;
 using MonoGame.Framework.Utilities;
+using static Sdl.Display;
+using Microsoft.Xna.Framework.Graphics;
+
+
+
+#if WASM
+using Microsoft.Xna.Framework.Platform.WASM;
+#endif
 
 #if __IOS__ || __TVOS__ || MONOMAC
 using ObjCRuntime;
@@ -1262,6 +1270,7 @@ namespace MonoGame.OpenGL
         {
             LoadPlatformEntryPoints ();
 
+#if !WASM
             if (Viewport == null)
                 Viewport = LoadFunction<ViewportDelegate> ("glViewport");
             if (Scissor == null)
@@ -1401,8 +1410,9 @@ namespace MonoGame.OpenGL
             catch (EntryPointNotFoundException) {
                 // this will be detected in the initialization of GraphicsCapabilities
             }
-
-#if DEBUG
+            
+#endif
+#if DEBUG && !WASM
             try
             {
                 DebugMessageCallback = LoadFunction<DebugMessageCallbackDelegate>("glDebugMessageCallback");
@@ -1423,7 +1433,7 @@ namespace MonoGame.OpenGL
                 InvalidateFramebuffer = LoadFunction<InvalidateFramebufferDelegate> ("glDiscardFramebufferEXT");
             }
 
-            LoadExtensions ();
+            LoadExtensions();
         }
 
         internal static List<string> Extensions = new List<string> ();
@@ -1436,6 +1446,9 @@ namespace MonoGame.OpenGL
             Android.Util.Log.Verbose("GL","Supported Extensions");
             foreach (var ext in Extensions)
                 Android.Util.Log.Verbose("GL", "   " + ext);
+#elif WASM && false
+            foreach (var ext in Extensions)
+                JSBootstrap.Log("GL extension : " + ext);
 #endif
         }
 
@@ -1444,6 +1457,7 @@ namespace MonoGame.OpenGL
             if (Extensions.Count == 0)
             {
                 string extstring = GL.GetString(StringName.Extensions);
+
                 var error = GL.GetError();
                 if (!string.IsNullOrEmpty(extstring) && error == ErrorCode.NoError)
                     Extensions.AddRange(extstring.Split(' '));
@@ -1516,24 +1530,53 @@ namespace MonoGame.OpenGL
 
         internal static void DepthRange(float min, float max)
         {
+#if WASM
+            WASMGL.GLDepthRange(WASMGameWindow.Instance.GLContext, min, max);
+#else
             if (BoundApi == RenderApi.ES)
                 DepthRangef(min, max);
             else
                 DepthRanged(min, max);
+#endif
         }
 
-        internal static void Uniform1 (int location, int value) {
+#if WASM
+        internal static void Uniform1 (System.Runtime.InteropServices.JavaScript.JSObject location, int value) {
+            WASMGL.GLUniform1i(WASMGameWindow.Instance.GLContext, location, value);
+        }
+
+        internal static unsafe void Uniform4 (System.Runtime.InteropServices.JavaScript.JSObject location, Span<byte> value) {
+            WASMGL.GLUniform4fv(WASMGameWindow.Instance.GLContext, location, value);
+        }
+
+#else
+        internal static void Uniform1(int location, int value)
+        {
             Uniform1i(location, value);
         }
 
-        internal static unsafe void Uniform4 (int location, int size, float* value) {
+        internal static unsafe void Uniform4(int location, int size, float* value)
+        {
             Uniform4fv(location, size, value);
         }
+#endif
 
+#if WASM
+        internal static string GetString(StringName name)
+        {
+            if(name == StringName.Extensions)
+            {
+                return WASMGL.GLGetSupportedExtensions(WASMGameWindow.Instance.GLContext);
+            }
+
+            return WASMGL.GLGetParameterString(WASMGameWindow.Instance.GLContext, (int)name);
+        }
+#else
         internal unsafe static string GetString (StringName name)
         {
             return Marshal.PtrToStringAnsi (GetStringInternal (name));
         }
+#endif
 
         protected static IntPtr MarshalStringArrayToPtr (string[] strings)
         {
@@ -1588,45 +1631,80 @@ namespace MonoGame.OpenGL
 
         internal static string GetProgramInfoLog (int programId)
         {
+#if WASM
+            return WASMGL.GLGetProgramInfoLog(WASMGameWindow.Instance.GLContext, WASM_GetProgram(programId));
+#else
             int length = 0;
             GetProgram(programId, GetProgramParameterName.LogLength, out length);
             var sb = new StringBuilder(length, length);
             GetProgramInfoLogInternal (programId, length, IntPtr.Zero, sb);
             return sb.ToString();
+#endif
         }
 
         internal static string GetShaderInfoLog (int shaderId) {
+#if WASM
+            return WASMGL.GLGetShaderInfoLog(WASMGameWindow.Instance.GLContext, WASM_GetShader(shaderId));
+#else
             int length = 0;
             GetShader(shaderId, ShaderParameter.LogLength, out length);
             var sb = new StringBuilder(length, length);
             GetShaderInfoLogInternal (shaderId, length, IntPtr.Zero, sb);
             return sb.ToString();
+#endif
         }
 
         internal unsafe static void ShaderSource(int shaderId, string code)
         {
+#if WASM
+            WASMGL.GLShaderSource(WASMGameWindow.Instance.GLContext, WASM_GetShader(shaderId), code);
+#else
             int length = code.Length;
             IntPtr intPtr = MarshalStringArrayToPtr (new string[] { code });
             ShaderSourceInternal(shaderId, 1, intPtr, &length);
             FreeStringArrayPtr(intPtr, 1);
+#endif
         }
 
         internal unsafe static void GetShader (int shaderId, ShaderParameter name, out int result)
         {
+#if WASM
+            bool r = WASMGL.GLGetShaderParameter(WASMGameWindow.Instance.GLContext, WASM_GetShader(shaderId), (int)name);
+
+            result = r ? 1 : 0;
+#else
             fixed (int* ptr = &result)
             {
                 GetShaderiv(shaderId, (int)name, ptr);
             }
+#endif
         }
 
         internal unsafe static void GetProgram(int programId, GetProgramParameterName name, out int result)
         {
+#if WASM
+            bool r = WASMGL.GLGetProgramParameter(WASMGameWindow.Instance.GLContext, WASM_GetProgram(programId), (int)name);
+
+            result = r ? 1 : 0;
+#else
             fixed (int* ptr = &result)
             {
                 GetProgramiv(programId, (int)name, ptr);
             }
+#endif
         }
 
+#if WASM
+        internal static void GetInteger(GetPName name, out int value)
+        {
+            value = WASMGL.GLGetParameterInt(WASMGameWindow.Instance.GLContext, (int)name);
+        }
+
+        internal static void GetInteger(int name, out int value)
+        {
+            value = WASMGL.GLGetParameterInt(WASMGameWindow.Instance.GLContext, name);
+        }
+#else
         internal unsafe static void GetInteger (GetPName name, out int value)
         {
             fixed (int* ptr = &value) {
@@ -1641,6 +1719,7 @@ namespace MonoGame.OpenGL
                 GetIntegerv (name, ptr);
             }
         }
+#endif
 
         internal static void TexParameter(TextureTarget target, TextureParameterName name, float value)
         {

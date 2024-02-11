@@ -116,8 +116,10 @@ namespace Microsoft.Xna.Framework.Graphics
 
             SupportsVertexTextures = false; // For now, until we implement vertex textures in OpenGL.
 
-
+#if !WASM
             GL.GetInteger((GetPName)GetParamName.MaxSamples, out _maxMultiSampleCount);
+            GraphicsExtensions.CheckGLError();
+#endif
 
             SupportsInstancing = GL.VertexAttribDivisor != null;
 

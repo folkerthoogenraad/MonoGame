@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34316.72
+MinimumVisualStudioVersion = 15.0.26124.0
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MonoGame.Framework.WASM", "MonoGame.Framework\MonoGame.Framework.WASM.csproj", "{BAED4719-B622-421D-86DC-FBA7D670C474}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BAED4719-B622-421D-86DC-FBA7D670C474}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BAED4719-B622-421D-86DC-FBA7D670C474}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BAED4719-B622-421D-86DC-FBA7D670C474}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BAED4719-B622-421D-86DC-FBA7D670C474}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {847BFB97-3FE9-4E70-B4D0-0B0C8F6921A8}
+	EndGlobalSection
+EndGlobal
